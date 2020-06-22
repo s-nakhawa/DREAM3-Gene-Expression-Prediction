@@ -16,8 +16,10 @@
 # Standard rankings provided on the challenge website. 
 
 # Load the dataset
-setwd("~/Desktop/Bio/Binf/DREAM3 Gene Expression Prediction/DREAM3geneexpressionprediction")
-expdata <- read.table("DREAM3_GeneExpressionChallenge_ExpressionData_UPDATED.txt", sep = "\t", header = T, stringsAsFactors = FALSE)
+expdata <- read.table("DREAM3_GeneExpressionChallenge_ExpressionData_UPDATED.txt", 
+                      sep = "\t", 
+                      header = T, 
+                      stringsAsFactors = FALSE)
 library(dplyr)
 expdata <- tbl_df(expdata)
 
@@ -28,11 +30,14 @@ expdata <- tbl_df(expdata)
 seed = 13
 
 tm = 120 # this is the time at which the gene expression in each sample is 
-# measured.There are 8 possible times: 0, 10, 20, 30, 45, 60, 90, or 120 seconds.
+         # measured, so the value of this variable can be changed. There are 8 possible 
+         # times: 0, 10, 20, 30, 45, 60, 90, or 120 seconds.
+
 tmcoldefault <- c(4, 12, 20, 28) # these are the columns of the dataset to use if
-# the default value of time is chosen
+                                 # tm = 0 seconds is chosen
+
 goldcoldefault <- 3 # this is the column of the gold standard rankings table to
-# use if the default value of time is chosen
+                    # use if the default value of time is chosen
 
 # The following conditional statement alters the columns of the dataframe to use,
 # the column of the gold standard to use, based on the time of the sample given
@@ -174,7 +179,6 @@ clustertrain$gat1 <- as.numeric(clustertrain$gat1)
 clustertrain[ , 3:5] <- lapply(clustertrain[ , 3:5], droplevels)
 
 # Large unnecessary data is removed from the environment
-rm(expdata)
 rm(kmgcn4)
 rm(clustergcn4)
 rm(kmleu3)
@@ -256,7 +260,9 @@ final$gat1 <- pred$predictions
 final <- arrange(final, geneName)
 
 # Load the Gold Standard rankings in the form of a dataframe 
-goldstandard <- read.table("DREAM3GoldStandard_ExpressionChallenge.txt", sep = "\t", header = T, stringsAsFactors = FALSE)
+goldstandard <- read.table("DREAM3GoldStandard_ExpressionChallenge.txt", 
+                           sep = "\t", header = T, 
+                           stringsAsFactors = FALSE)
 goldstandard <- tbl_df(goldstandard)
 
 # There are 3 genes from the original dataset that are absent in the updated 
@@ -287,24 +293,30 @@ gs <- arrange(gs, gene_name) # the genes are then arranged by alphabetical order
 # sample are compared to the Gold Standard rankings using Spearman correlation.
 cor.test(gs$ranktime, order(final$gat1, decreasing = TRUE), method = "spearman")
 
-# The predicted rankings are then saved in a vector based on which time these 
-# predictions represent.
+# The predicted rankings are then saved in a column of the predictions 
+# datafraame based on which time these predictions are for.
+exprank <- read.csv("DREAM3_GeneExpressionChallenge_TargetList.txt", 
+                    sep = "\t", header = T, 
+                    stringsAsFactors = FALSE)
+exprank <- exprank[-nogene, ]
+exprank <- tbl_df(exprank)
+
 if (tm == 0) {
-  time0 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time0 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 10) {
-  time10 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time10 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 20) {
-  time20 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time20 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 30) {
-  time30 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time30 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 45) {
-  time45 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time45 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 60) {
-  time60 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time60 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 90) {
-  time90 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time90 <- order(final$gat1, decreasing = TRUE)
 } else if (tm == 120) {
-  time120 <- order(final$gat1, decreasing = TRUE)
+  exprank$rank.time120 <- order(final$gat1, decreasing = TRUE)
 }
 
 # Large unnecessary data is removed from the environment
@@ -316,22 +328,6 @@ rm(final)
 # samples were measured
 
 
-
-
-
-
-
-# Create a dataframe of the expression level rankings for each time tested
-exprank <- as.data.frame(gs$gene_name) %>%
-  mutate(time0 = time0, 
-         time10 = time10, 
-         time20 = time20, 
-         time30 = time30, 
-         time45 = time45, 
-         time60 = time60, 
-         time90 = time90, 
-         time120 = time120) %>%
-  tbl_df()
 
 goldstandard <- goldstandard[ , 2:10] # the gold standard dataframe is now 
 # restricted to show the gene_name column and the expression level rankings 
@@ -358,10 +354,9 @@ pvalcol <- numeric(length = 8) # create an empty vector where the p-values will 
                                # stored. There are 8 times, meaning 8 p-values, so 
                                # the vector should be numeric and of length 8.
 
-exprankonly <- as.data.frame(exprank[ , 2:9])
 for (i in 1:8) {
   pvalcol[i] <- cor.test(as.vector(gold[ , i + 1]), 
-                         as.vector(exprankonly[ , i]), 
+                         as.vector(unlist(exprank[ , i + 2])), 
                          method = "spearman")$p.value
 } # this for loop takes every column with predicted rankings and compares them to
   # the gold standard rankings for all genes within one time
@@ -375,10 +370,9 @@ print(paste("The overall gene-profile p-value is", geometric.mean(pvalcol)))
 # Calculate overall time profile p values for each gene
 pvalrow <- numeric(length = 47) # create an empty vector with 47 spaces, that will
                                 # be filled with 47 p-values for the rankings of each gene
-exprankonly <- as.data.frame(exprank)
 for (i in 1:47) {
   pvalrow[i] <- cor.test(as.vector(unlist(gold[i , 2:9])), 
-                         as.vector(unlist(exprank[i , 2:9])), 
+                         as.vector(unlist(exprank[i , 3:10])), 
                          method = "spearman")$p.value
 } # this for loop takes every row (gene) with predicted rankings and compares them 
   # to the Gold Standard rankings of the same genes using Spearman correlation
@@ -390,6 +384,12 @@ print(paste("The overall time-profile p-value is", geometric.mean(pvalrow)))
 
 # Calculate the overall score (a log transformed average of the overall 
 # gene-profile p-value and the overall time profile p-value)
--0.5 * log10(pg * py)
+
 print(paste("The overall score is", -0.5 * log10(pg * py)))
+
+
+# The overall gene-profile p-value is 0.409749042968948
+# The overall time-profile p-value is 0.324050474191364
+# The overall score is 0.438434695406524
+
 
